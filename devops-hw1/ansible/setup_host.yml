@@ -1,0 +1,43 @@
+---
+- name: Configure DevOps host
+  hosts: servers
+  become: true
+
+  tasks:
+    - name: Install Docker and Compose
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Create deployer user
+      ansible.builtin.user:
+        name: deployer
+        shell: /bin/bash
+        create_home: true
+        groups: docker
+        append: true
+
+    - name: Allow deployer passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/deployer
+        content: "deployer ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add student to Docker group
+      ansible.builtin.user:
+        name: student
+        groups: docker
+        append: true
